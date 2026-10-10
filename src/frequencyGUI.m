@@ -54,6 +54,7 @@ function frequencyGUI()
     edD0B = mkEdit(pB, '30', [0.29 0.52 0.07 0.30], BG_CTRL, FG_TEXT);
     lblNB = mkLabel(pB, 'orde n:', [0.38 0.52 0.07 0.30], false, BG_PANEL, FG_TEXT);
     edNB = mkEdit(pB, '2', [0.45 0.52 0.06 0.30], BG_CTRL, FG_TEXT);
+    chkPadB = mkCheck(pB, 'Zero pad 2x', true, [0.53 0.52 0.10 0.30], BG_PANEL, FG_TEXT);
     toggleOrderB();
     mkButton(pB, 'Apply', [0.01 0.10 0.14 0.32], BG_CTRL, FG_TEXT, @(~,~) runPass('B'));
     infoB = mkTextBox(pB, [0.64 0.05 0.35 0.90], BG_CTRL, FG_TEXT);
@@ -68,6 +69,8 @@ function frequencyGUI()
     edD0C = mkEdit(pC, '30', [0.29 0.52 0.07 0.30], BG_CTRL, FG_TEXT);
     lblNC = mkLabel(pC, 'orde n:', [0.38 0.52 0.07 0.30], false, BG_PANEL, FG_TEXT);
     edNC = mkEdit(pC, '2', [0.45 0.52 0.06 0.30], BG_CTRL, FG_TEXT);
+    chkPadC = mkCheck(pC, 'Zero pad 2x', true, [0.53 0.52 0.10 0.30], BG_PANEL, FG_TEXT);
+    chkNormC = mkCheck(pC, 'Normalisasi [min-max]', true, [0.28 0.10 0.20 0.30], BG_PANEL, FG_TEXT);
     toggleOrderC();
     mkButton(pC, 'Apply', [0.01 0.10 0.14 0.32], BG_CTRL, FG_TEXT, @(~,~) runPass('C'));
     infoC = mkTextBox(pC, [0.64 0.05 0.35 0.90], BG_CTRL, FG_TEXT);
@@ -80,6 +83,7 @@ function frequencyGUI()
     edGainD = mkEdit(pD, '1.5', [0.06 0.52 0.07 0.30], BG_CTRL, FG_TEXT);
     mkLabel(pD, 'D0:', [0.15 0.52 0.04 0.30], false, BG_PANEL, FG_TEXT);
     edD0D = mkEdit(pD, '30', [0.19 0.52 0.07 0.30], BG_CTRL, FG_TEXT);
+    chkPadD = mkCheck(pD, 'Zero pad 2x', true, [0.28 0.52 0.10 0.30], BG_PANEL, FG_TEXT);
     mkButton(pD, 'Apply', [0.01 0.10 0.14 0.32], BG_CTRL, FG_TEXT, @(~,~) runBrightness());
     infoD = mkTextBox(pD, [0.64 0.05 0.35 0.90], BG_CTRL, FG_TEXT);
     axD = mkAxesGrid(tabD, {'Citra Masukan', 'Spektrum Masukan', 'Fungsi Penapis H(u,v)', ...
@@ -181,23 +185,26 @@ function frequencyGUI()
         if ~checkInputLoaded(), return; end
         try
             if key == 'B'
-                dd = ddB; edD0 = edD0B; edN = edNB; ax = axB; info = infoB; builder = @lowPassFilter;
+                dd = ddB; edD0 = edD0B; edN = edNB; ax = axB; info = infoB; builder = @lowPassFilter; chkPad = chkPadB; doNorm = false;
             else
-                dd = ddC; edD0 = edD0C; edN = edNC; ax = axC; info = infoC; builder = @highPassFilter;
+                dd = ddC; edD0 = edD0C; edN = edNC; ax = axC; info = infoC; builder = @highPassFilter; chkPad = chkPadC; doNorm = logical(get(chkNormC, 'Value'));
             end
             type = passTypes{get(dd, 'Value')};
             D0 = getNum(edD0, 'D0', 0);
             n = getNum(edN, 'orde n', 1);
             [M, N, ~] = size(originalImg);
-            H = builder(M, N, type, D0, n);
-            [result, specAfter] = filterImage(H);
+            [P, Q] = padSize(chkPad);
+            H = builder(P, Q, type, D0, n);
+            [result, specBefore, specAfter] = filterImage(H);
+            if doNorm, result = stretch(result); end
+            showMat(ax{2}, logSpectrum(specBefore), [], 'Spektrum Masukan');
             showMat(ax{3}, H, [0 max(1, max(H(:)))], 'Fungsi Penapis H(u,v)');
             showMat(ax{4}, logSpectrum(specAfter), [], 'Spektrum Setelah Penapisan');
             showImg(ax{5}, result, 'Citra Hasil');
             results.(key) = {'', result};
             set(info, 'String', {sprintf('Jenis: %s', type), sprintf('D0: %.4g', D0), ...
                 ternary(strcmp(type, 'Butterworth'), sprintf('Orde n: %d', n), 'Orde n: -'), ...
-                sprintf('Ukuran: %d x %d', M, N)});
+                sprintf('Ukuran citra: %d x %d', M, N), sprintf('Ukuran H: %d x %d', P, Q)});
             setLog(sprintf('Selesai: %s (D0=%.4g)', type, D0));
         catch ME
             reportError(ME);
@@ -210,8 +217,10 @@ function frequencyGUI()
             gain = getNum(edGainD, 'gain', 0);
             D0 = getNum(edD0D, 'D0', 0);
             [M, N, ~] = size(originalImg);
-            H = brightnessFilter(M, N, gain, D0);
-            [result, specAfter] = filterImage(H);
+            [P, Q] = padSize(chkPadD);
+            H = brightnessFilter(P, Q, gain, D0);
+            [result, specBefore, specAfter] = filterImage(H);
+            showMat(axD{2}, logSpectrum(specBefore), [], 'Spektrum Masukan');
             showMat(axD{3}, H, [0 max(1, max(H(:)))], 'Fungsi Penapis H(u,v)');
             showMat(axD{4}, logSpectrum(specAfter), [], 'Spektrum Setelah Penapisan');
             showImg(axD{5}, result, 'Citra Hasil');
@@ -244,7 +253,7 @@ function frequencyGUI()
                 H = bandRejectFilter(M, N, passTypes{choice}, D0, W, n);
                 desc = {sprintf('D0: %.4g', D0), sprintf('W: %.4g', W), sprintf('orde n: %d', n)};
             end
-            [result, specAfter] = filterImage(H);
+            [result, ~, specAfter] = filterImage(H);
             showMat(axE{3}, H, [0 1], 'Mask / Penapis H(u,v)');
             showMat(axE{4}, logSpectrum(specAfter), [], 'Spektrum Setelah Penapisan');
             showImg(axE{5}, result, 'Citra Hasil Restorasi');
@@ -291,10 +300,31 @@ function frequencyGUI()
     end
 
     % helper (males misahin file)
-    function [result, specAfter] = filterImage(H)
-        % H dikali per kanal RGB, spektrum 'sesudah' diambil dari versi gray aja
-        result = applyPerChannel(originalImg, isColor, @(ch) applyFreqFilter(ch, H));
-        [~, ~, specAfter] = applyFreqFilter(grayOf(originalImg), H);
+    function [result, specBefore, specAfter] = filterImage(H)
+        % pad kiri-atas ke ukuran H (kalo H lebih gede), filter per kanal, terus dipotong lagi
+        [M, N, ~] = size(originalImg);
+        [P, Q] = size(H);
+        result = applyPerChannel(originalImg, isColor, @(ch) cropTo(applyFreqFilter(padTo(ch, P, Q), H), M, N));
+        [~, specBefore, specAfter] = applyFreqFilter(padTo(grayOf(originalImg), P, Q), H);
+    end
+
+    function [P, Q] = padSize(chk)
+        [M, N, ~] = size(originalImg);
+        if get(chk, 'Value'), P = 2 * M; Q = 2 * N; else, P = M; Q = N; end
+    end
+
+    function out = padTo(ch, P, Q)
+        out = zeros(P, Q);
+        out(1:size(ch, 1), 1:size(ch, 2)) = ch;
+    end
+
+    function out = cropTo(ch, M, N)
+        out = ch(1:M, 1:N);
+    end
+
+    function out = stretch(img)
+        lo = min(img(:)); hi = max(img(:));
+        if hi <= lo, out = zeros(size(img)); else, out = (img - lo) / (hi - lo) * 255; end
     end
 
     function refreshInputs()
