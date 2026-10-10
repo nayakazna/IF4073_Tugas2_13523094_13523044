@@ -1,6 +1,8 @@
 function Fhat = inverseFilter(G, H, radius, minH)
-% Bagian F. G/H di ranah frekuensi, keduanya terpusat. Balikannya spektrum estimasi (terpusat juga).
-% Hati-hati H mendekati 0, bisa meledak: makanya ada radius (Inf = bebas) & minH.
-% TODO: bagiannyna sampeyan mas
-    error('IF4073:notImplemented', 'inverseFilter belum diimplementasikan (F).');
+% Inverse filtering: F^ = G ./ H, tapi cuma di dalam radius dan di tempat |H| >= minH.
+% Sisanya diset 0 (ratio dipotong, kayak slide), kalo ga ya noise bakal meledak di H kecil.
+    D = freqGrid(size(G, 1), size(G, 2));
+    ok = (D <= radius) & (abs(H) >= minH) & (abs(H) > 0);
+    Fhat = zeros(size(G));
+    Fhat(ok) = G(ok) ./ H(ok);
 end

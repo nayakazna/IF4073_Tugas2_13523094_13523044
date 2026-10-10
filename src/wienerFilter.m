@@ -1,6 +1,5 @@
 function Fhat = wienerFilter(G, H, K)
-% Bagian F. Wiener, versi inverse yang lebih kalem. K = NSR, G & H terpusat.
-% Balikannya spektrum estimasi terpusat, ifft2-nya diurus GUI.
-% TODO: sek bijim belum, iki bagiane sampeyan mas
-    error('IF4073:notImplemented', 'wienerFilter belum diimplementasikan (F).');
+% Wiener dengan K = Sn/Sf (konstanta, kayak slide): F^ = conj(H) ./ (|H|^2 + K) .* G.
+% K = 0 jadi inverse filter murni, K gede makin kalem (tapi makin burem).
+    Fhat = conj(H) ./ (abs(H).^2 + K) .* G;
 end
